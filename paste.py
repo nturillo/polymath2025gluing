@@ -1,5 +1,27 @@
 ### tools to paste together (G, a)s and (H, b)s without gluing A \times B edges
 
+from itertools import product
+
+def get_all_pastes(graphs, min_degree=0):
+    """
+    Given a list of graphs, returns a list of all possible pastes
+    (G, a) and (H, b) where a and b are vertices in G and H respectively.
+    Each paste is represented as a 2-tuple: (graph, d), where d is the size
+    of the neighborhood of a and b.
+    """
+    results = []
+    for G1, G2 in product(graphs, repeat=2):
+        a_candidates = [orbit[0] for orbit in G1.automorphism_group().orbits()]
+        b_candidates = [orbit[0] for orbit in G2.automorphism_group().orbits()]
+        for a, b in product(a_candidates, b_candidates):
+            attempt = try_paste_together(G1, a, G2, b, min_degree)
+            if attempt is None:
+                continue
+            pastes, d = attempt
+            for paste in pastes:
+                results.append((paste, d))
+    return results
+
 def try_paste_together(G, a, H, b, min_degree=0):
     """
     Try to paste together (G, a) and (H, b) without gluing A x B edges.
@@ -46,13 +68,14 @@ def try_paste_together(G, a, H, b, min_degree=0):
 
         ## add b
         F.add_vertex(H_relabel_map[b])
-        for u in a_nbhd:
-            F.add_edge(G_relabel_map[u], H_relabel_map[b])
+        for u in [G_relabel_map[u] for u in G]:
+            F.add_edge(u, H_relabel_map[b])
 
         ## add all vertices in B = H - nbhd(b)
         for v in B:
             label = H_relabel_map[v]
             F.add_vertex(label)
+            F.add_edge(G_relabel_map[a], label)
             for u in H.neighbors(v):
                 if u in iso_map:
                     K_nbhr = G_relabel_map[aut(iso_map[u])]
@@ -62,4 +85,4 @@ def try_paste_together(G, a, H, b, min_degree=0):
 
         results.append(F)
 
-    return results, d
+    return (results, d)
