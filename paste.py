@@ -28,23 +28,11 @@ def write_graphs_to_file(graphs, filename):
         for graph in graphs:
             f.write(graph.graph6_string() + '\n')
 
-def unique_graphs(graph_list):
-    seen = set()
-    unique = []
-    for G in graph_list:
-        canon = G.canonical_label()
-        # convert to string or another hashable type
-        canon_str = canon.graph6_string()
-        if canon_str not in seen:
-            seen.add(canon_str)
-            unique.append(G)
-    return unique
-
 def get_all_pastes(graphs, min_degree=0):
     """
     Given a list of graphs, returns a list of all possible pastes
     (G, a) and (H, b) where a and b are vertices in G and H respectively.
-    Returns a dict where keys are d = |nbhd(a)| = |nbhd(b)|, and values are lists of pasted graphs.
+    Returns a dict where keys are d = |K|, and values are lists of pasted graphs.
     """
     results = {}
     graphs_to_point_candidates = {}
@@ -103,7 +91,6 @@ def try_paste_together(G, a, H, b, min_degree=0):
     
     # Create a new graph that combines G and H
     d = len(a_nbhd)
-    n = len(G) + len(H) - d
     A = set(G.vertices()) - set(G.neighbors(a)) - {a}
     B = set(H.vertices()) - set(H.neighbors(b)) - {b}
     ## relabel so that the order is a, b, A, B, nbhd(a) = nbhd(b) = K
