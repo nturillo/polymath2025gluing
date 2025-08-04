@@ -19,12 +19,13 @@ def read_graphs_from_file(filename):
                 graphs.append(graph)
     return graphs
 
-def write_graphs_to_file(graphs, filename):
+def write_graphs_to_file(graphs, filename, append=False):
     """
     Writes a list of graphs to a file in graph6 format.
     Each graph is written on a new line.
     """
-    with open(filename, 'w') as f:
+    mode = 'a' if append else 'w'
+    with open(filename, mode) as f:
         for graph in graphs:
             f.write(graph.graph6_string() + '\n')
 
@@ -34,41 +35,38 @@ def get_all_pastes(graphs, min_degree=0):
     (G, a) and (H, b) where a and b are vertices in G and H respectively.
     Returns a dict where keys are d = |K|, and values are lists of pasted graphs.
     """
+    Ks_to_graphs = {}
+    for G in graphs:
+        for a in [orbit[0] for orbit in G.automorphism_group().orbits()]:
+            K = G.subgraph(G.neighbors(a))
+            K_can = K.canonical_label()
+            K_can_str = K_can.graph6_string()
+            K_automorphisms = K.automorphism_group()
+            if K_can_str not in Ks_to_graphs:
+                Ks_to_graphs[K_can_str] = []
+            Ks_to_graphs[K_can_str].append((a, G, K_automorphisms))
+
     results = {}
-    graphs_to_point_candidates = {}
-    for i, G in enumerate(graphs):
-        a_candidates = [orbit[0] for orbit in G.automorphism_group().orbits()]
-        graphs_to_point_candidates[i] = a_candidates
-    
-    # G1 and G2 are different graphs
-    for i, j in combinations(range(len(graphs)), 2):
-        G1 = graphs[i]
-        G2 = graphs[j]
-        a_candidates = graphs_to_point_candidates[i]
-        b_candidates = graphs_to_point_candidates[j]
-        for a, b in product(a_candidates, b_candidates):
-            attempt = try_paste_together(G1, a, G2, b, min_degree)
-            if attempt is None:
-                continue
-            pastes, d = attempt
-            if d not in results:
-                results[d] = []
-            results[d].extend(pastes)
-    # G1 and G2 are the same graph
-    for i, G in enumerate(graphs):
-        a_candidates = graphs_to_point_candidates[i]
-        for a, b in combinations_with_replacement(a_candidates, 2):
-            attempt = try_paste_together(G, a, G, b, min_degree)
-            if attempt is None:
-                continue
-            pastes, d = attempt
-            if d not in results:
-                results[d] = []
-            results[d].extend(pastes)
+    print(f"Found {len(Ks_to_graphs)} unique K graphs.")
+
+    for K_can_str, tuples in Ks_to_graphs.items():
+        for (a, G, a_nbhd_autos), (b, H, b_nbhd_autos) in product(tuples, repeat=2):
+            pastes, d = try_paste_together(G, a, a_nbhd_autos, H, b, min_degree)
+            if pastes is not None:
+                if d not in results:
+                    results[d] = []
+                for paste in pastes:
+                    results[d].append(paste)
+            num_pastes = sum(len(pastes) for pastes in results.values())
+            if num_pastes >=  10000:
+                for d in results:
+                    write_graphs_to_file(results[d], f'pasted_graphs_d{d}.txt', append=True)
+                print(f"Processed {num_pastes} pastes for K = \"{K_can_str}\".")
+                results.clear()
 
     return results
 
-def try_paste_together(G, a, H, b, min_degree=0):
+def try_paste_together(G, a, a_nbhd_autos, H, b, min_degree=0):
     """
     Try to paste together (G, a) and (H, b) without gluing A x B edges.
     Returns a 2-tuple:
@@ -105,8 +103,7 @@ def try_paste_together(G, a, H, b, min_degree=0):
     for i, v in enumerate(a_nbhd.vertices(), start=2 + len(A) + len(B)):
         G_relabel_map[v] = i
 
-    a_nbhd_automorphisms = a_nbhd.automorphism_group()
-    for aut in a_nbhd_automorphisms:
+    for aut in a_nbhd_autos:
         ## start F as a copy of  G
         F = G.copy()
         F.relabel(G_relabel_map)
