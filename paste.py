@@ -39,6 +39,8 @@ def get_all_pastes(graphs, min_degree=0):
     for G in graphs:
         for a in [orbit[0] for orbit in G.automorphism_group().orbits()]:
             K = G.subgraph(G.neighbors(a))
+            if len(K) < min_degree:
+                continue
             K_can = K.canonical_label()
             K_can_str = K_can.graph6_string()
             K_automorphisms = K.automorphism_group()
