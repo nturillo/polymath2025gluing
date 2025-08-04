@@ -1,6 +1,6 @@
 from paste import *
 
-cases = [15]
+cases = [14]
 
 for case in cases:
     input_file = f"j4k5/Pj4k5n{case}.txt"
