@@ -41,32 +41,21 @@ def get_all_pastes(graphs, min_degree=0):
             K = G.subgraph(G.neighbors(a))
             if len(K) < min_degree:
                 continue
-            K_can = K.canonical_label()
-            K_can_str = K_can.graph6_string()
+            num_in_edges = K.num_edges() * 2
+            num_isolated = K.num_verts() - num_in_edges
             K_automorphisms = K.automorphism_group()
-            if K_can_str not in Ks_to_graphs:
-                Ks_to_graphs[K_can_str] = []
-            Ks_to_graphs[K_can_str].append((a, G, K_automorphisms))
+            if (num_in_edges, num_isolated) not in Ks_to_graphs:
+                Ks_to_graphs[(num_in_edges, num_isolated)] = []
+            Ks_to_graphs[(num_in_edges, num_isolated)].append((a, G, K_automorphisms))
 
-    results = {}
     print(f"Found {len(Ks_to_graphs)} unique K graphs.")
 
-    for K_can_str, tuples in Ks_to_graphs.items():
+    for (num_in_edges, num_isolated), tuples in Ks_to_graphs.items():
         for (a, G, a_nbhd_autos), (b, H, b_nbhd_autos) in product(tuples, repeat=2):
             pastes, d = try_paste_together(G, a, a_nbhd_autos, H, b, min_degree)
-            if pastes is not None:
-                if d not in results:
-                    results[d] = []
-                for paste in pastes:
-                    results[d].append(paste)
-            num_pastes = sum(len(pastes) for pastes in results.values())
-            if num_pastes >=  10000:
-                for d in results:
-                    write_graphs_to_file(results[d], f'pasted_graphs_d{d}.txt', append=True)
-                print(f"Processed {num_pastes} pastes for K = \"{K_can_str}\".")
-                results.clear()
+        write_graphs_to_file(pastes, f'pasted_graphs_{num_in_edges}edge_{num_isolated}isolated.g6')
+        print(f"Processed {len(pastes)} pastes for K = \"{(num_in_edges, num_isolated)}\".")
 
-    return results
 
 def try_paste_together(G, a, a_nbhd_autos, H, b, min_degree=0):
     """
