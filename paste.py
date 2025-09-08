@@ -41,20 +41,25 @@ def get_all_pastes(graphs, min_degree=0):
             K = G.subgraph(G.neighbors(a))
             if len(K) < min_degree:
                 continue
-            num_in_edges = K.num_edges() * 2
-            num_isolated = K.num_verts() - num_in_edges
+            g6 = K.canonical_label().graph6_string()
             K_automorphisms = K.automorphism_group()
-            if (num_in_edges, num_isolated) not in Ks_to_graphs:
-                Ks_to_graphs[(num_in_edges, num_isolated)] = []
-            Ks_to_graphs[(num_in_edges, num_isolated)].append((a, G, K_automorphisms))
+            if g6 not in Ks_to_graphs:
+                Ks_to_graphs[g6] = [(a, G, K_automorphisms)]
+            Ks_to_graphs[g6].append((a, G, K_automorphisms))
 
     print(f"Found {len(Ks_to_graphs)} unique K graphs.")
 
-    for (num_in_edges, num_isolated), tuples in Ks_to_graphs.items():
-        for (a, G, a_nbhd_autos), (b, H, b_nbhd_autos) in product(tuples, repeat=2):
-            pastes, d = try_paste_together(G, a, a_nbhd_autos, H, b, min_degree)
-        write_graphs_to_file(pastes, f'pasted_graphs_{num_in_edges}edge_{num_isolated}isolated.g6')
-        print(f"Processed {len(pastes)} pastes for K = \"{(num_in_edges, num_isolated)}\".")
+    results = {}
+    for K_g6, tuples in Ks_to_graphs.items():
+        for (a, G, a_nbhd_autos), (b, H, b_nbhd_autos) in combinations_with_replacement(tuples, r=2):
+            new_pastes, d = try_paste_together(G, a, a_nbhd_autos, H, b, min_degree)
+            if d in results:
+                results[d].extend(new_pastes)
+            else:
+                results[d] = new_pastes
+        print(f"Processed {len(new_pastes)} pastes for K = {K_g6}.")
+
+    return results 
 
 
 def try_paste_together(G, a, a_nbhd_autos, H, b, min_degree=0):
